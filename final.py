@@ -490,6 +490,7 @@ if query:
 
     ph.info("🧠 Generating answer with llama3...")
 
+
     prompt = f"""You are an AI assistant for SASTRA University admissions.
                     Use ONLY the context below. 
                     If the answer is not there, say: "I cannot find this in the admission policy."
