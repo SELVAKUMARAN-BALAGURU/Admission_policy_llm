@@ -335,6 +335,37 @@ FOOTER
     font-weight: 500;
 }
 
+
+/* ─────────────────────────────
+FOLLOW-UP QUESTION
+───────────────────────────── */
+
+.followup-wrap {
+    margin: 10px 0 20px 0;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+    border-left: 3px solid #2563eb;
+    border-radius: 0 12px 12px 0;
+    max-width: 85%;
+}
+
+.followup-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #2563eb;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.followup-bubble {
+    font-size: 14px;
+    color: #1e3a5f;
+    font-style: italic;
+    line-height: 1.6;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -464,6 +495,15 @@ for msg in st.session_state.messages:
             <div class="msg-assistant-bubble">{rendered}</div>
         </div>
         """, unsafe_allow_html=True)
+        # ── Replay follow-up question from history ──
+        if msg.get("followup"):
+            rendered_fq = md.markdown(msg["followup"], extensions=["extra", "nl2br"])
+            st.markdown(f"""
+            <div class="followup-wrap">
+                <span class="followup-label">💬 Follow-up</span>
+                <div class="followup-bubble">{rendered_fq}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────
@@ -494,8 +534,8 @@ if query:
     prompt = f"""You are an AI assistant for SASTRA University admissions.
                     Use ONLY the context below. 
                     Whatever the query give detailed answer based on the context.Dont make hallucinations.Strict to the context.
-                    If there any mail id or contact number in the context, extract it and provide it in the answer more precisely.
-                    If possible ask followup question to the user for more clarity.
+                    If there any mail id or contact number in the context and if it is related to the query asked then give that more precisely without any mistake.
+                    you need to provide the nri admission link and contact number if and only if the query is related to nri.
                     If the answer is not there, say: "I cannot find this in the admission policy."
 
                 Context:
@@ -515,6 +555,28 @@ if query:
     elapsed = round(time.time() - t0, 2)
     answer = response["message"]["content"]
 
+    # ── Second pass: generate follow-up question ──────────────────────────
+    ph.info("💬 Generating follow-up question...")
+    followup_prompt = f"""You are an AI assistant for SASTRA University admissions.
+Based on the user's question and the answer provided below, generate exactly ONE short,
+relevant follow-up question that would naturally continue the conversation.
+The follow-up question should be directly related to the topic and help the user
+explore the admission process further.
+Return ONLY the question — no explanation, no prefix like "Follow-up:", just the question itself.
+
+User's Question: {query}
+
+Answer Given:
+{answer}
+
+Follow-up Question:"""
+
+    followup_response = ollama.chat(
+        model="llama3",
+        messages=[{"role": "user", "content": followup_prompt}]
+    )
+    followup_question = followup_response["message"]["content"].strip()
+
     ph.empty()
 
     rendered_answer = md.markdown(answer, extensions=["extra", "nl2br"])
@@ -529,10 +591,20 @@ if query:
     </div>
     """, unsafe_allow_html=True)
 
+    # ── Render follow-up card ─────────────────────────────────────────────
+    rendered_followup = md.markdown(followup_question, extensions=["extra", "nl2br"])
+    st.markdown(f"""
+    <div class="followup-wrap">
+        <span class="followup-label">💬 Follow-up</span>
+        <div class="followup-bubble">{rendered_followup}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.session_state.messages.append({
         "role": "assistant",
         "content": answer,
-        "elapsed": f"{elapsed}s"
+        "elapsed": f"{elapsed}s",
+        "followup": followup_question
     })
 
 

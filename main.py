@@ -56,7 +56,7 @@ prompt = f"""
 You are an AI assistant helping students understand college admission policies.
 
 Use ONLY the information from the context.
-
+If there any mail id or contact number in the context, extract it and provide it in the answer more precisely.
 If the answer is not in the context, say:
 "I cannot find the answer in the admission policy."
 
